@@ -30,24 +30,13 @@ import scala.collection.generic.CanBuildFrom
  */
 @Internal
 @SerialVersionUID(7522917416391312410L)
-class TraversableSerializer[T <: TraversableOnce[E], E](
-    var elementSerializer: TypeSerializer[E],
-    var cbfCode: String)
+abstract class TraversableSerializer[T <: TraversableOnce[E], E](
+    var elementSerializer: TypeSerializer[E])
   extends TypeSerializer[T] with Cloneable {
 
-  @transient var cbf: CanBuildFrom[T, E, T] = compileCbf(cbfCode)
+  def getCbf: CanBuildFrom[T, E, T]
 
-  def compileCbf(code: String): CanBuildFrom[T, E, T] = {
-
-    import scala.reflect.runtime.universe._
-    import scala.tools.reflect.ToolBox
-
-    val tb = runtimeMirror(Thread.currentThread().getContextClassLoader).mkToolBox()
-    val tree = tb.parse(code)
-    val compiled = tb.compile(tree)
-    val cbf = compiled()
-    cbf.asInstanceOf[CanBuildFrom[T, E, T]]
-  }
+  @transient var cbf: CanBuildFrom[T, E, T] = getCbf
 
   override def duplicate = {
     val duplicateElementSerializer = elementSerializer.duplicate()
@@ -63,7 +52,7 @@ class TraversableSerializer[T <: TraversableOnce[E], E](
 
   private def readObject(in: ObjectInputStream): Unit = {
     in.defaultReadObject()
-    cbf = compileCbf(cbfCode)
+    cbf = getCbf
   }
 
   override def createInstance: T = {
@@ -163,7 +152,30 @@ class TraversableSerializer[T <: TraversableOnce[E], E](
     obj.isInstanceOf[TraversableSerializer[_, _]]
   }
 
-  override def snapshotConfiguration(): TraversableSerializerSnapshot[T, E] = {
-    new TraversableSerializerSnapshot[T, E](this)
+  override def snapshotConfiguration(): TraversableSerializerConfigSnapshot[T, E] = {
+    new TraversableSerializerConfigSnapshot[T, E](elementSerializer)
+  }
+
+  override def ensureCompatibility(
+      configSnapshot: TypeSerializerConfigSnapshot[_]): CompatibilityResult[T] = {
+
+    configSnapshot match {
+      case traversableSerializerConfigSnapshot
+          : TraversableSerializerConfigSnapshot[T, E] =>
+
+        val elemCompatRes = CompatibilityUtil.resolveCompatibilityResult(
+          traversableSerializerConfigSnapshot.getSingleNestedSerializerAndConfig.f0,
+          classOf[UnloadableDummyTypeSerializer[_]],
+          traversableSerializerConfigSnapshot.getSingleNestedSerializerAndConfig.f1,
+          elementSerializer)
+
+        if (elemCompatRes.isRequiresMigration) {
+          CompatibilityResult.requiresMigration()
+        } else {
+          CompatibilityResult.compatible()
+        }
+
+      case _ => CompatibilityResult.requiresMigration()
+    }
   }
 }
