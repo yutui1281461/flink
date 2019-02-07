@@ -227,12 +227,7 @@ private[flink] trait TypeInformationGen[C <: Context] {
     val elementClazz = c.Expr[Class[T]](Literal(Constant(desc.elem.tpe)))
     val elementTypeInfo = mkTypeInfo(desc.elem)(c.WeakTypeTag(desc.elem.tpe))
 
-    val cbfString =
-      s"""
-        |implicitly[scala.collection.generic.CanBuildFrom[${desc.tpe}, ${desc.elem.tpe}, ${desc.tpe}]]
-      """.stripMargin
-
-    val cbfStringLiteral = c.Expr[Class[T]](Literal(Constant(cbfString)))
+    val cbf = q"implicitly[CanBuildFrom[${desc.tpe}, ${desc.elem.tpe}, ${desc.tpe}]]"
 
     val result = q"""
       import scala.collection.generic.CanBuildFrom
@@ -244,8 +239,9 @@ private[flink] trait TypeInformationGen[C <: Context] {
       new TraversableTypeInfo($collectionClass, elementTpe) {
         def createSerializer(executionConfig: ExecutionConfig) = {
           new TraversableSerializer[${desc.tpe}, ${desc.elem.tpe}](
-              elementTpe.createSerializer(executionConfig),
-              $cbfStringLiteral)
+              elementTpe.createSerializer(executionConfig)) {
+            def getCbf = implicitly[CanBuildFrom[${desc.tpe}, ${desc.elem.tpe}, ${desc.tpe}]]
+          }
         }
       }
     """
