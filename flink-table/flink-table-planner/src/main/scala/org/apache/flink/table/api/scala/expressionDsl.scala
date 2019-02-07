@@ -1052,10 +1052,11 @@ trait ImplicitExpressionConversions {
     }
   }
 
+  @deprecated("Please use Table.joinLateral() or Table.leftOuterJoinLateral() instead.", "1.8")
   implicit def tableFunctionCall2Table(tfc: TableFunctionCall): Table = {
     new Table(
-      tableEnv = null, // Table environment will be set later.
-      tfc.toLogicalTableFunctionCall(null) // Child will be set later.
+      tableEnv = null, // table environment will be set later.
+      tfc.toLogicalTableFunctionCall(child = null) // child will be set later.
     )
   }
 

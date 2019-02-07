@@ -691,7 +691,7 @@ tableEnv.registerFunction("rates", rates);
 // join with "Orders" based on the time attribute and key
 Table orders = tableEnv.scan("Orders");
 Table result = orders
-    .join(new Table(tEnv, "rates(o_proctime)"), "o_currency = r_currency")
+    .joinLateral("rates(o_proctime)", "o_currency = r_currency")
 {% endhighlight %}
         <p>For more information please check the more detailed <a href="streaming/temporal_tables.html">temporal tables concept description</a>.</p>
       </td>

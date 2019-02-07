@@ -324,30 +324,27 @@ case class TableFunctionCall(
     * Assigns an alias for this table function's returned fields that the following operator
     * can refer to.
     *
-    * @param fields alias for this table function's returned fields
+    * @param aliasList alias for this table function's returned fields
     * @return this table function call
     */
-  def as(fields: Symbol*): TableFunctionCall = {
-    this.aliases = Some(fields.map(_.name))
+  private[flink] def setAliases(aliasList: Seq[String]): TableFunctionCall = {
+    this.aliases = Some(aliasList)
     this
   }
 
   /**
-    * Assigns an alias for this table function's returned fields that the following operator
-    * can refer to.
+    * Specifies the field names for a join with a table function.
     *
-    * @param fields alias for this table function's returned fields
-    * @return this table function call
+    * @param name name for one field
+    * @param extraNames additional names if the expression expands to multiple fields
+    * @return field with an alias
     */
-  def as(fields: String): TableFunctionCall = {
-    if (fields.isEmpty) {
-      this
-    } else {
-      val fieldExprs = ExpressionParser
-        .parseExpressionList(fields)
-        .map(f => Symbol(f.asInstanceOf[UnresolvedFieldReference].name))
-      as(fieldExprs: _*)
-    }
+  def as(name: Symbol, extraNames: Symbol*): TableFunctionCall = {
+    // NOTE: this method is only a temporary solution until we
+    // remove the deprecated table constructor. Otherwise Scala would be confused
+    // about Table.as() and Expression.as(). In the future, we can rely on Expression.as() only.
+    this.aliases = Some(name.name +: extraNames.map(_.name))
+    this
   }
 
   /**
