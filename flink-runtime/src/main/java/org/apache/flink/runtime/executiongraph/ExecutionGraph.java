@@ -126,7 +126,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  *         from the JobGraph's corresponding JobVertex.</li>
  *     <li>The {@link ExecutionVertex} represents one parallel subtask. For each ExecutionJobVertex, there are
  *         as many ExecutionVertices as the parallelism. The ExecutionVertex is identified by
- *         the ExecutionJobVertex and the number of the parallel subtask</li>
+ *         the ExecutionJobVertex and the index of the parallel subtask</li>
  *     <li>The {@link Execution} is one attempt to execute a ExecutionVertex. There may be multiple Executions
  *         for the ExecutionVertex, in case of a failure, or in the case where some data needs to be recomputed
  *         because it is no longer available when requested by later operations. An Execution is always
@@ -1007,8 +1007,33 @@ public class ExecutionGraph implements AccessExecutionGraph {
 					if (strippedThrowable instanceof TimeoutException) {
 						int numTotal = allAllocationsFuture.getNumFuturesTotal();
 						int numComplete = allAllocationsFuture.getNumFuturesCompleted();
+
 						String message = "Could not allocate all requires slots within timeout of " +
-							timeout + ". Slots required: " + numTotal + ", slots allocated: " + numComplete;
+							timeout + ". Slots required: " + numTotal + ", slots allocated: " + numComplete +
+								", previous allocation IDs: " + allPreviousAllocationIds;
+
+						StringBuilder executionMessageBuilder = new StringBuilder();
+
+						for (int i = 0; i < allAllocationFutures.size(); i++) {
+							CompletableFuture<Execution> executionFuture = allAllocationFutures.get(i);
+
+							try {
+								Execution execution = executionFuture.getNow(null);
+								if (execution != null) {
+									executionMessageBuilder.append("completed: " + execution);
+								} else {
+									executionMessageBuilder.append("incomplete: " + executionFuture);
+								}
+							} catch (CompletionException completionException) {
+								executionMessageBuilder.append("completed exceptionally: " + completionException + "/" + executionFuture);
+							}
+
+							if (i < allAllocationFutures.size() - 1 ) {
+								executionMessageBuilder.append(", ");
+							}
+						}
+
+						message += ", execution status: " + executionMessageBuilder.toString();
 
 						resultThrowable = new NoResourceAvailableException(message);
 					} else {
