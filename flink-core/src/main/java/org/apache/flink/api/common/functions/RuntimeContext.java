@@ -258,7 +258,7 @@ public interface RuntimeContext {
 	 *
 	 *     public Tuple2<MyType, Long> map(MyType value) {
 	 *         long count = state.value() + 1;
-	 *         state.update(count);
+	 *         state.update(value);
 	 *         return new Tuple2<>(value, count);
 	 *     }
 	 * });

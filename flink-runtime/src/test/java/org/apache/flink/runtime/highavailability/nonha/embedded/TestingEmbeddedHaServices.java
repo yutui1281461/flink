@@ -51,14 +51,4 @@ public class TestingEmbeddedHaServices extends EmbeddedHaServices {
 		final EmbeddedLeaderService jobMasterLeaderService = getJobManagerLeaderService(jobId);
 		return jobMasterLeaderService.grantLeadership();
 	}
-
-	public CompletableFuture<Void> revokeResourceManagerLeadership() {
-		final EmbeddedLeaderService resourceManagerLeaderService = getResourceManagerLeaderService();
-		return resourceManagerLeaderService.revokeLeadership();
-	}
-
-	public CompletableFuture<Void> grantResourceManagerLeadership() {
-		final EmbeddedLeaderService resourceManagerLeaderService = getResourceManagerLeaderService();
-		return resourceManagerLeaderService.grantLeadership();
-	}
 }

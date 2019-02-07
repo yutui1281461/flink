@@ -210,13 +210,12 @@ public class DispatcherTest extends TestLogger {
 
 	@Nonnull
 	private TestingDispatcher createDispatcher(HeartbeatServices heartbeatServices, TestingHighAvailabilityServices haServices, JobManagerRunnerFactory jobManagerRunnerFactory) throws Exception {
-		TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 		return new TestingDispatcher(
 			rpcService,
 			Dispatcher.DISPATCHER_NAME + '_' + name.getMethodName(),
 			configuration,
 			haServices,
-			() -> CompletableFuture.completedFuture(resourceManagerGateway),
+			new TestingResourceManagerGateway(),
 			blobServer,
 			heartbeatServices,
 			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),

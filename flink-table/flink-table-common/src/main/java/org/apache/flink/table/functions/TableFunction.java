@@ -67,7 +67,7 @@ import org.apache.flink.util.Collector;
  *
  *   // for Scala users
  *   val split = new Split()
- *   table.joinLateral(split('a) as ('s)).select('a, 's)
+ *   table.joinLateral(split('c) as ('s)).select('a, 's)
  *
  *   // for Java users
  *   tEnv.registerFunction("split", new Split());   // register table function first

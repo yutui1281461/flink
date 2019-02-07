@@ -134,10 +134,6 @@ public class EmbeddedHaServices extends AbstractNonHaServices {
 		return jobManagerLeaderServices.get(jobId);
 	}
 
-	EmbeddedLeaderService getResourceManagerLeaderService() {
-		return resourceManagerLeaderService;
-	}
-
 	@Nonnull
 	private EmbeddedLeaderService createEmbeddedLeaderService(Executor executor) {
 		return new EmbeddedLeaderService(executor);

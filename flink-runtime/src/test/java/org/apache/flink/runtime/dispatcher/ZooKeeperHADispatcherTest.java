@@ -326,13 +326,12 @@ public class ZooKeeperHADispatcherTest extends TestLogger {
 
 	@Nonnull
 	private TestingDispatcher createDispatcher(HighAvailabilityServices highAvailabilityServices, JobManagerRunnerFactory jobManagerRunnerFactory) throws Exception {
-		TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 		return new TestingDispatcher(
 			rpcService,
 			Dispatcher.DISPATCHER_NAME + '_' + name.getMethodName() + UUID.randomUUID(),
 			configuration,
 			highAvailabilityServices,
-			() -> CompletableFuture.completedFuture(resourceManagerGateway),
+			new TestingResourceManagerGateway(),
 			blobServer,
 			new HeartbeatServices(1000L, 1000L),
 			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),

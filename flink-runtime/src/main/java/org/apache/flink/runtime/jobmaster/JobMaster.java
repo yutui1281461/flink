@@ -512,7 +512,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			},
 			getMainThreadExecutor());
 
-		rescalingFuture.whenCompleteAsync(
+		rescalingFuture.whenComplete(
 			(Acknowledge ignored, Throwable throwable) -> {
 				if (throwable != null) {
 					// fail the newly created execution graph
@@ -522,7 +522,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 								String.format("Failed to rescale the job %s.", jobGraph.getJobID()),
 								throwable)));
 				}
-			}, getMainThreadExecutor());
+			});
 
 		return rescalingFuture;
 	}
@@ -1005,7 +1005,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	//-- job starting and stopping  -----------------------------------------------------------------
 
 	private Acknowledge startJobExecution(JobMasterId newJobMasterId) throws Exception {
-
 		validateRunsInMainThread();
 
 		checkNotNull(newJobMasterId, "The new JobMasterId must not be null.");
@@ -1110,18 +1109,17 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		if (executionGraph.getState() == JobStatus.CREATED) {
 			executionGraphAssignedFuture = CompletableFuture.completedFuture(null);
-			executionGraph.start(getMainThreadExecutor());
 		} else {
 			suspendAndClearExecutionGraphFields(new FlinkException("ExecutionGraph is being reset in order to be rescheduled."));
 			final JobManagerJobMetricGroup newJobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
 			final ExecutionGraph newExecutionGraph = createAndRestoreExecutionGraph(newJobManagerJobMetricGroup);
 
-			executionGraphAssignedFuture = executionGraph.getTerminationFuture().handle(
+			executionGraphAssignedFuture = executionGraph.getTerminationFuture().handleAsync(
 				(JobStatus ignored, Throwable throwable) -> {
-					newExecutionGraph.start(getMainThreadExecutor());
 					assignExecutionGraph(newExecutionGraph, newJobManagerJobMetricGroup);
 					return null;
-				});
+				},
+				getMainThreadExecutor());
 		}
 
 		executionGraphAssignedFuture.thenRun(this::scheduleExecutionGraph);
@@ -1568,14 +1566,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		@Override
 		protected RetryingRegistration<ResourceManagerId, ResourceManagerGateway, JobMasterRegistrationSuccess> generateRegistration() {
 			return new RetryingRegistration<ResourceManagerId, ResourceManagerGateway, JobMasterRegistrationSuccess>(
-				log,
-				getRpcService(),
-				"ResourceManager",
-				ResourceManagerGateway.class,
-				getTargetAddress(),
-				getTargetLeaderId(),
-				jobMasterConfiguration.getRetryingRegistrationConfiguration()) {
-
+					log, getRpcService(), "ResourceManager", ResourceManagerGateway.class,
+					getTargetAddress(), getTargetLeaderId()) {
 				@Override
 				protected CompletableFuture<RegistrationResponse> invokeRegistration(
 						ResourceManagerGateway gateway, ResourceManagerId fencingToken, long timeoutMillis) {

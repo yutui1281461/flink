@@ -26,7 +26,6 @@ import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
-import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 
 import javax.annotation.Nonnull;
@@ -41,7 +40,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Component which starts a {@link Dispatcher}, {@link ResourceManager} and {@link WebMonitorEndpoint}
  * in the same process.
  */
-public class DispatcherResourceManagerComponent<T extends Dispatcher> implements AutoCloseableAsync {
+public class DispatcherResourceManagerComponent<T extends Dispatcher> {
 
 	@Nonnull
 	private final T dispatcher;
@@ -142,7 +141,7 @@ public class DispatcherResourceManagerComponent<T extends Dispatcher> implements
 			final CompletableFuture<Void> closeWebMonitorAndDeregisterAppFuture =
 				FutureUtils.composeAfterwards(webMonitorEndpoint.closeAsync(), () -> deregisterApplication(applicationStatus, diagnostics));
 
-			return FutureUtils.composeAfterwards(closeWebMonitorAndDeregisterAppFuture, this::closeAsyncInteral);
+			return FutureUtils.composeAfterwards(closeWebMonitorAndDeregisterAppFuture, this::closeAsyncInternal);
 		} else {
 			return terminationFuture;
 		}
@@ -156,7 +155,7 @@ public class DispatcherResourceManagerComponent<T extends Dispatcher> implements
 		return selfGateway.deregisterApplication(applicationStatus, diagnostics).thenApply(ack -> null);
 	}
 
-	private CompletableFuture<Void> closeAsyncInteral() {
+	private CompletableFuture<Void> closeAsyncInternal() {
 		Exception exception = null;
 
 		final Collection<CompletableFuture<Void>> terminationFutures = new ArrayList<>(3);
@@ -198,10 +197,5 @@ public class DispatcherResourceManagerComponent<T extends Dispatcher> implements
 		});
 
 		return terminationFuture;
-	}
-
-	@Override
-	public CompletableFuture<Void> closeAsync() {
-		return deregisterApplicationAndClose(ApplicationStatus.CANCELED, "DispatcherResourceManagerComponent has been closed.");
 	}
 }

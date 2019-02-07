@@ -62,7 +62,7 @@ public enum YarnResourceManagerFactory implements ResourceManagerFactory<YarnWor
 
 		return new YarnResourceManager(
 			rpcService,
-			getEndpointId(),
+			ResourceManager.RESOURCE_MANAGER_NAME,
 			resourceId,
 			configuration,
 			System.getenv(),

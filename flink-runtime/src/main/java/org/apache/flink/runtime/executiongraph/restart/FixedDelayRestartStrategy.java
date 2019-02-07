@@ -23,10 +23,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.util.Preconditions;
+import scala.concurrent.duration.Duration;
 
 import java.util.concurrent.TimeUnit;
-
-import scala.concurrent.duration.Duration;
 
 /**
  * Restart strategy which tries to restart the given {@link ExecutionGraph} a fixed number of times
@@ -62,7 +61,13 @@ public class FixedDelayRestartStrategy implements RestartStrategy {
 	@Override
 	public void restart(final RestartCallback restarter, ScheduledExecutor executor) {
 		currentRestartAttempt++;
-		executor.schedule(restarter::triggerFullRecovery, delayBetweenRestartAttempts, TimeUnit.MILLISECONDS);
+
+		executor.schedule(new Runnable() {
+			@Override
+			public void run() {
+				restarter.triggerFullRecovery();
+			}
+		}, delayBetweenRestartAttempts, TimeUnit.MILLISECONDS);
 	}
 
 	/**
