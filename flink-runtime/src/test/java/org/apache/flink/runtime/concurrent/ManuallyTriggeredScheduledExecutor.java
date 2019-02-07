@@ -18,11 +18,9 @@
 
 package org.apache.flink.runtime.concurrent;
 
+import org.apache.flink.core.testutils.ManuallyTriggeredDirectExecutor;
 import org.apache.flink.util.Preconditions;
 
-import javax.annotation.Nonnull;
-
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -31,7 +29,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -39,49 +36,9 @@ import java.util.concurrent.TimeoutException;
 /**
  * Simple {@link ScheduledExecutor} implementation for testing purposes.
  */
-public class ManuallyTriggeredScheduledExecutor implements ScheduledExecutor, ComponentMainThreadExecutor {
+public class ManuallyTriggeredScheduledExecutor extends ManuallyTriggeredDirectExecutor implements ScheduledExecutor {
 
-	private final Executor executorDelegate;
-	private final ArrayDeque<Runnable> queuedRunnables = new ArrayDeque<>();
 	private final ConcurrentLinkedQueue<ScheduledTask<?>> scheduledTasks = new ConcurrentLinkedQueue<>();
-
-	public ManuallyTriggeredScheduledExecutor() {
-		this.executorDelegate = Runnable::run;
-	}
-
-	@Override
-	public void execute(@Nonnull Runnable command) {
-		synchronized (queuedRunnables) {
-			queuedRunnables.addLast(command);
-		}
-	}
-
-	/**
-	 * Triggers the next queued runnable and executes it synchronously.
-	 * This method throws an exception if no Runnable is currently queued.
-	 */
-	public void trigger() {
-		final Runnable next;
-
-		synchronized (queuedRunnables) {
-			next = queuedRunnables.removeFirst();
-		}
-
-		if (next != null) {
-			CompletableFuture.runAsync(next, executorDelegate).join();
-		} else {
-			throw new IllegalStateException("No runnable available");
-		}
-	}
-
-	/**
-	 * Gets the number of Runnables currently queued.
-	 */
-	public int numQueuedRunnables() {
-		synchronized (queuedRunnables) {
-			return queuedRunnables.size();
-		}
-	}
 
 	@Override
 	public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
@@ -139,10 +96,6 @@ public class ManuallyTriggeredScheduledExecutor implements ScheduledExecutor, Co
 		scheduledTasks.offer(scheduledTask);
 
 		return scheduledTask;
-	}
-
-	@Override
-	public void assertRunningInMainThread() {
 	}
 
 	private static final class ScheduledTask<T> implements ScheduledFuture<T> {

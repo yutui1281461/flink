@@ -61,7 +61,6 @@ import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPre
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -106,7 +105,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	private final RunningJobsRegistry runningJobsRegistry;
 
 	private final HighAvailabilityServices highAvailabilityServices;
-	private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
+	private final ResourceManagerGateway resourceManagerGateway;
 	private final JobManagerSharedServices jobManagerSharedServices;
 	private final HeartbeatServices heartbeatServices;
 	private final BlobServer blobServer;
@@ -138,7 +137,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			Configuration configuration,
 			HighAvailabilityServices highAvailabilityServices,
 			SubmittedJobGraphStore submittedJobGraphStore,
-			GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
+			ResourceManagerGateway resourceManagerGateway,
 			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
 			JobManagerMetricGroup jobManagerMetricGroup,
@@ -151,7 +150,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 		this.configuration = Preconditions.checkNotNull(configuration);
 		this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityServices);
-		this.resourceManagerGatewayRetriever = Preconditions.checkNotNull(resourceManagerGatewayRetriever);
+		this.resourceManagerGateway = Preconditions.checkNotNull(resourceManagerGateway);
 		this.heartbeatServices = Preconditions.checkNotNull(heartbeatServices);
 		this.blobServer = Preconditions.checkNotNull(blobServer);
 		this.fatalErrorHandler = Preconditions.checkNotNull(fatalErrorHandler);
@@ -399,7 +398,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	@Override
 	public CompletableFuture<ClusterOverview> requestClusterOverview(Time timeout) {
-		CompletableFuture<ResourceOverview> taskManagerOverviewFuture = runResourceManagerCommand(resourceManagerGateway -> resourceManagerGateway.requestResourceOverview(timeout));
+		CompletableFuture<ResourceOverview> taskManagerOverviewFuture = resourceManagerGateway.requestResourceOverview(timeout);
 
 		final List<CompletableFuture<Optional<JobStatus>>> optionalJobInformation = queryJobMastersForInformation(
 			(JobMasterGateway jobMasterGateway) -> jobMasterGateway.requestJobStatus(timeout));
@@ -519,7 +518,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	@Override
 	public CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServicePaths(Time timeout) {
-		return runResourceManagerCommand(resourceManagerGateway -> resourceManagerGateway.requestTaskManagerMetricQueryServicePaths(timeout));
+		return resourceManagerGateway.requestTaskManagerMetricQueryServicePaths(timeout);
 	}
 
 	@Override
@@ -768,14 +767,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				},
 				getMainThreadExecutor());
 		}
-	}
-
-	private CompletableFuture<ResourceManagerGateway> getResourceManagerGateway() {
-		return resourceManagerGatewayRetriever.getFuture();
-	}
-
-	private <T> CompletableFuture<T> runResourceManagerCommand(Function<ResourceManagerGateway, CompletableFuture<T>> resourceManagerCommand) {
-		return getResourceManagerGateway().thenApply(resourceManagerCommand).thenCompose(Function.identity());
 	}
 
 	private <T> List<T> flattenOptionalCollection(Collection<Optional<T>> optionalCollection) {

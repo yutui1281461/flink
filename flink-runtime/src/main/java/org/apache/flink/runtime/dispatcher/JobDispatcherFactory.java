@@ -29,7 +29,6 @@ import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nullable;
 
@@ -51,7 +50,7 @@ public class JobDispatcherFactory implements DispatcherFactory<MiniDispatcher> {
 			Configuration configuration,
 			RpcService rpcService,
 			HighAvailabilityServices highAvailabilityServices,
-			GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
+			ResourceManagerGateway resourceManagerGateway,
 			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
 			JobManagerMetricGroup jobManagerMetricGroup,
@@ -67,10 +66,10 @@ public class JobDispatcherFactory implements DispatcherFactory<MiniDispatcher> {
 
 		return new MiniDispatcher(
 			rpcService,
-			getEndpointId(),
+			Dispatcher.DISPATCHER_NAME,
 			configuration,
 			highAvailabilityServices,
-			resourceManagerGatewayRetriever,
+			resourceManagerGateway,
 			blobServer,
 			heartbeatServices,
 			jobManagerMetricGroup,

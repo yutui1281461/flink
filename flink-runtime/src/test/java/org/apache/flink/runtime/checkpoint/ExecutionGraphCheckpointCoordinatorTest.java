@@ -25,7 +25,6 @@ import org.apache.flink.runtime.executiongraph.DummyJobInformation;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.TestingComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.TestingSlotProvider;
 import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
@@ -150,8 +149,6 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 			ClassLoader.getSystemClassLoader(),
 			VoidBlobWriter.getInstance(),
 			timeout);
-
-		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		executionGraph.enableCheckpointing(
 				100,

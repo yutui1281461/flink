@@ -18,9 +18,7 @@
 
 package org.apache.flink.runtime.testutils;
 
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.util.FileUtils;
-import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -31,14 +29,11 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
-import java.util.concurrent.TimeoutException;
 
 /**
  * This class contains auxiliary methods for unit tests.
  */
 public class CommonTestUtils {
-
-	private static final long RETRY_INTERVAL = 100L;
 
 	/**
 	 * Sleeps for a given set of milliseconds, uninterruptibly. If interrupt is called,
@@ -151,20 +146,6 @@ public class CommonTestUtils {
 			writer.println("log4j.logger.org.eclipse.jetty.util.log=OFF");
 			writer.println("log4j.logger.org.apache.zookeeper=OFF");
 			writer.flush();
-		}
-	}
-
-	public static void waitUntilCondition(SupplierWithException<Boolean, Exception> condition, Deadline timeout) throws Exception {
-		waitUntilCondition(condition, timeout, RETRY_INTERVAL);
-	}
-
-	public static void waitUntilCondition(SupplierWithException<Boolean, Exception> condition, Deadline timeout, long retryIntervalMillis) throws Exception {
-		while (timeout.hasTimeLeft() && !condition.get()) {
-			Thread.sleep(Math.min(RETRY_INTERVAL, timeout.timeLeft().toMillis()));
-		}
-
-		if (!timeout.hasTimeLeft()) {
-			throw new TimeoutException("Condition was not met in given timeout.");
 		}
 	}
 
