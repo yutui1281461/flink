@@ -18,9 +18,7 @@
 
 package org.apache.flink.runtime.entrypoint.component;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
-import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -38,14 +36,7 @@ import javax.annotation.Nonnull;
 public class SessionDispatcherResourceManagerComponentFactory extends AbstractDispatcherResourceManagerComponentFactory<Dispatcher, DispatcherGateway> {
 
 	public SessionDispatcherResourceManagerComponentFactory(@Nonnull ResourceManagerFactory<?> resourceManagerFactory) {
-		this(SessionDispatcherFactory.INSTANCE, resourceManagerFactory);
-	}
-
-	@VisibleForTesting
-	public SessionDispatcherResourceManagerComponentFactory(
-			@Nonnull DispatcherFactory<Dispatcher> dispatcherFactory,
-			@Nonnull ResourceManagerFactory<?> resourceManagerFactory) {
-		super(dispatcherFactory, resourceManagerFactory, SessionRestEndpointFactory.INSTANCE);
+		super(SessionDispatcherFactory.INSTANCE, resourceManagerFactory, SessionRestEndpointFactory.INSTANCE);
 	}
 
 	@Override

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -56,7 +57,7 @@ public enum StandaloneResourceManagerFactory implements ResourceManagerFactory<R
 
 		return new StandaloneResourceManager(
 			rpcService,
-			getEndpointId(),
+			FlinkResourceManager.RESOURCE_MANAGER_NAME,
 			resourceId,
 			highAvailabilityServices,
 			heartbeatServices,

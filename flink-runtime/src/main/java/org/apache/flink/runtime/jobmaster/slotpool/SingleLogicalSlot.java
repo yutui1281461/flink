@@ -122,8 +122,8 @@ public class SingleLogicalSlot implements LogicalSlot, AllocatedSlot.Payload {
 	@Override
 	public CompletableFuture<?> releaseSlot(@Nullable Throwable cause) {
 		if (STATE_UPDATER.compareAndSet(this, State.ALIVE, State.RELEASING)) {
-			signalPayloadRelease(cause);
-			returnSlotToOwner(payload.getTerminalStateFuture());
+			final CompletableFuture<?> payloadTerminalStateFuture = signalPayloadRelease(cause);
+			returnSlotToOwner(payloadTerminalStateFuture);
 		}
 
 		return releaseFuture;
@@ -169,31 +169,32 @@ public class SingleLogicalSlot implements LogicalSlot, AllocatedSlot.Payload {
 		releaseFuture.complete(null);
 	}
 
-	private void signalPayloadRelease(Throwable cause) {
+	private CompletableFuture<?> signalPayloadRelease(Throwable cause) {
 		tryAssignPayload(TERMINATED_PAYLOAD);
-		payload.failAsync(cause); //TODO this goes from the pool against the execution, has to by sync'ed back into the jm main thread
+		payload.fail(cause);
+
+		return payload.getTerminalStateFuture();
 	}
 
 	private void returnSlotToOwner(CompletableFuture<?> terminalStateFuture) {
-		terminalStateFuture
-			.handle((Object ignored, Throwable throwable) -> {
-				if (state == State.RELEASING) {
-					return slotOwner.returnAllocatedSlot(this);
-				} else {
-					return CompletableFuture.completedFuture(true);
-				}
-			})
-			.thenCompose(Function.identity())
-			.whenComplete( //TODO this could be inside the job master main thread, should be inside slot pool main thread
-				(Object ignored, Throwable throwable) -> {
-					markReleased();
+		final CompletableFuture<Boolean> slotReturnFuture = terminalStateFuture.handle((Object ignored, Throwable throwable) -> {
+			if (state == State.RELEASING) {
+				return slotOwner.returnAllocatedSlot(this);
+			} else {
+				return CompletableFuture.completedFuture(true);
+			}
+		}).thenCompose(Function.identity());
 
-					if (throwable != null) {
-						releaseFuture.completeExceptionally(throwable);
-					} else {
-						releaseFuture.complete(null);
-					}
-				});
+		slotReturnFuture.whenComplete(
+			(Object ignored, Throwable throwable) -> {
+				markReleased();
+
+				if (throwable != null) {
+					releaseFuture.completeExceptionally(throwable);
+				} else {
+					releaseFuture.complete(null);
+				}
+			});
 	}
 
 	private void markReleased() {

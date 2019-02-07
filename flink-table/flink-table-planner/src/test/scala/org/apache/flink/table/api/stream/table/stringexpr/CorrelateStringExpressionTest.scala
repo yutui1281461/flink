@@ -29,7 +29,6 @@ import org.junit.Test
 class CorrelateStringExpressionTest extends TableTestBase {
 
   @Test
-  @deprecated("Test only verifies the deprecated table constructor.")
   def testCorrelateJoins(): Unit = {
 
     val util = streamTestUtil()

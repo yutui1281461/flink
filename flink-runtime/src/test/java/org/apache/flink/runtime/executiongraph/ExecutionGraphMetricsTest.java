@@ -21,9 +21,12 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.metrics.RestartTimeGauge;
+import org.apache.flink.runtime.executiongraph.restart.RestartCallback;
+import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -49,8 +52,6 @@ import static org.junit.Assert.assertTrue;
 
 public class ExecutionGraphMetricsTest extends TestLogger {
 
-	private final TestingComponentMainThreadExecutorServiceAdapter mainThreadExecutor = TestingComponentMainThreadExecutorServiceAdapter.forMainThread();
-
 	/**
 	 * This test tests that the restarting time metric correctly displays restarting times.
 	 */
@@ -75,7 +76,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 			slotFutures.addLast(slotFuture1);
 			slotFutures.addLast(slotFuture2);
 
-			TestRestartStrategy testingRestartStrategy = TestRestartStrategy.manuallyTriggered();
+			TestingRestartStrategy testingRestartStrategy = new TestingRestartStrategy();
 
 			ExecutionGraph executionGraph = new ExecutionGraph(
 				executor,
@@ -87,8 +88,6 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 				timeout,
 				testingRestartStrategy,
 				new TestingSlotProvider(ignore -> slotFutures.removeFirst()));
-
-			executionGraph.start(mainThreadExecutor);
 
 			RestartTimeGauge restartingTime = new RestartTimeGauge(executionGraph);
 
@@ -103,7 +102,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 
 			List<ExecutionAttemptID> executionIDs = new ArrayList<>();
 
-			for (ExecutionVertex executionVertex : executionGraph.getAllExecutionVertices()) {
+			for (ExecutionVertex executionVertex: executionGraph.getAllExecutionVertices()) {
 				executionIDs.add(executionVertex.getCurrentExecutionAttempt().getAttemptId());
 			}
 
@@ -144,11 +143,11 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 			assertTrue(previousRestartingTime > 0);
 
 			// restart job
-			testingRestartStrategy.triggerAll().join();
+			testingRestartStrategy.restartExecutionGraph();
 
 			executionIDs.clear();
 
-			for (ExecutionVertex executionVertex : executionGraph.getAllExecutionVertices()) {
+			for (ExecutionVertex executionVertex: executionGraph.getAllExecutionVertices()) {
 				executionIDs.add(executionVertex.getCurrentExecutionAttempt().getAttemptId());
 			}
 
@@ -201,7 +200,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 			// now lets fail the job while it is in restarting and see whether the restarting time then stops to increase
 			// for this to work, we have to use a SuppressRestartException
 			executionGraph.failGlobal(new SuppressRestartsException(new Exception()));
-
+	
 			assertEquals(JobStatus.FAILED, executionGraph.getState());
 
 			previousRestartingTime = restartingTime.getValue();
@@ -216,4 +215,24 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 			executor.shutdownNow();
 		}
 	}
+
+	static class TestingRestartStrategy implements RestartStrategy {
+
+		private RestartCallback restarter;
+
+		@Override
+		public boolean canRestart() {
+			return true;
+		}
+
+		@Override
+		public void restart(RestartCallback restarter, ScheduledExecutor executor) {
+			this.restarter = restarter;
+		}
+
+		public void restartExecutionGraph() {
+			restarter.triggerFullRecovery();
+		}
+	}
+
 }

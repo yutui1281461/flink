@@ -45,7 +45,6 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.InMemorySubmittedJobGraphStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -308,13 +307,12 @@ public class DispatcherHATest extends TestLogger {
 		JobManagerRunnerFactory jobManagerRunnerFactory) throws Exception {
 		final Configuration configuration = new Configuration();
 
-		TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 		return new HATestingDispatcher(
 			rpcService,
 			UUID.randomUUID().toString(),
 			configuration,
 			highAvailabilityServices,
-			() -> CompletableFuture.completedFuture(resourceManagerGateway),
+			new TestingResourceManagerGateway(),
 			new BlobServer(configuration, new VoidBlobStore()),
 			new HeartbeatServices(1000L, 1000L),
 			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
@@ -345,7 +343,7 @@ public class DispatcherHATest extends TestLogger {
 				String endpointId,
 				Configuration configuration,
 				HighAvailabilityServices highAvailabilityServices,
-				GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
+				ResourceManagerGateway resourceManagerGateway,
 				BlobServer blobServer,
 				HeartbeatServices heartbeatServices,
 				JobManagerMetricGroup jobManagerMetricGroup,
@@ -359,7 +357,7 @@ public class DispatcherHATest extends TestLogger {
 				endpointId,
 				configuration,
 				highAvailabilityServices,
-				resourceManagerGatewayRetriever,
+				resourceManagerGateway,
 				blobServer,
 				heartbeatServices,
 				jobManagerMetricGroup,

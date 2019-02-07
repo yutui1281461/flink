@@ -74,7 +74,7 @@ public class MiniClusterResource extends ExternalResource {
 	}
 
 	public URI getRestAddres() {
-		return miniCluster.getRestAddress().join();
+		return miniCluster.getRestAddress();
 	}
 
 	@Override
@@ -139,7 +139,7 @@ public class MiniClusterResource extends ExternalResource {
 
 		miniCluster.start();
 
-		final URI restAddress = miniCluster.getRestAddress().get();
+		final URI restAddress = miniCluster.getRestAddress();
 		createClientConfiguration(restAddress);
 	}
 
