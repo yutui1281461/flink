@@ -30,7 +30,6 @@ import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
-import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.internal.InternalKvState;
@@ -40,20 +39,15 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
+import java.util.Collections;
 import java.util.concurrent.RunnableFuture;
 
 /** Base class for state backend test context. */
 public abstract class StateBackendTestContext {
-	public static final int NUMBER_OF_KEY_GROUPS = 10;
-
 	private final StateBackend stateBackend;
 	private final CheckpointStorageLocation checkpointStorageLocation;
 	private final TtlTimeProvider timeProvider;
-	private final SharedStateRegistry sharedStateRegistry;
-	private final List<KeyedStateHandle> snapshots;
 
 	private AbstractKeyedStateBackend<String> keyedStateBackend;
 
@@ -61,8 +55,6 @@ public abstract class StateBackendTestContext {
 		this.timeProvider = Preconditions.checkNotNull(timeProvider);
 		this.stateBackend = Preconditions.checkNotNull(createStateBackend());
 		this.checkpointStorageLocation = createCheckpointStorageLocation();
-		this.sharedStateRegistry = new SharedStateRegistry();
-		this.snapshots = new ArrayList<>();
 	}
 
 	protected abstract StateBackend createStateBackend();
@@ -78,44 +70,27 @@ public abstract class StateBackendTestContext {
 	}
 
 	void createAndRestoreKeyedStateBackend() {
-		createAndRestoreKeyedStateBackend(NUMBER_OF_KEY_GROUPS);
-	}
-
-	void createAndRestoreKeyedStateBackend(int numberOfKeyGroups) {
 		Environment env = new DummyEnvironment();
 		try {
 			disposeKeyedStateBackend();
 			keyedStateBackend = stateBackend.createKeyedStateBackend(
-				env, new JobID(), "test", StringSerializer.INSTANCE, numberOfKeyGroups,
-				new KeyGroupRange(0, numberOfKeyGroups - 1), env.getTaskKvStateRegistry(), timeProvider);
+				env, new JobID(), "test", StringSerializer.INSTANCE, 10,
+				new KeyGroupRange(0, 9), env.getTaskKvStateRegistry(), timeProvider);
 		} catch (Exception e) {
 			throw new RuntimeException("unexpected", e);
 		}
 	}
 
-	void dispose() throws Exception {
-		disposeKeyedStateBackend();
-		for (KeyedStateHandle snapshot : snapshots) {
-			snapshot.discardState();
-		}
-		snapshots.clear();
-		sharedStateRegistry.close();
-	}
-
-	private void disposeKeyedStateBackend() {
+	void disposeKeyedStateBackend() {
 		if (keyedStateBackend != null) {
 			keyedStateBackend.dispose();
 			keyedStateBackend = null;
 		}
 	}
 
+	@Nonnull
 	KeyedStateHandle takeSnapshot() throws Exception {
-		SnapshotResult<KeyedStateHandle> snapshotResult = triggerSnapshot().get();
-		KeyedStateHandle jobManagerOwnedSnapshot = snapshotResult.getJobManagerOwnedSnapshot();
-		if (jobManagerOwnedSnapshot != null) {
-			jobManagerOwnedSnapshot.registerSharedStates(sharedStateRegistry);
-		}
-		return jobManagerOwnedSnapshot;
+		return triggerSnapshot().get().getJobManagerOwnedSnapshot();
 	}
 
 	@Nonnull
@@ -130,18 +105,15 @@ public abstract class StateBackendTestContext {
 	}
 
 	void restoreSnapshot(@Nullable KeyedStateHandle snapshot) throws Exception {
-		Collection<KeyedStateHandle> snapshots = new ArrayList<>();
-		snapshots.add(snapshot);
 		Collection<KeyedStateHandle> restoreState =
-			snapshot == null ? null : new StateObjectCollection<>(snapshots);
+			snapshot == null ? null : new StateObjectCollection<>(Collections.singleton(snapshot));
 		keyedStateBackend.restore(restoreState);
 		if (snapshot != null) {
-			snapshots.add(snapshot);
+			snapshot.discardState();
 		}
 	}
 
-	public void setCurrentKey(String key) {
-		//noinspection resource
+	void setCurrentKey(String key) {
 		Preconditions.checkNotNull(keyedStateBackend, "keyed backend is not initialised");
 		keyedStateBackend.setCurrentKey(key);
 	}
@@ -153,10 +125,5 @@ public abstract class StateBackendTestContext {
 		S state = keyedStateBackend.getOrCreateKeyedState(StringSerializer.INSTANCE, stateDescriptor);
 		((InternalKvState<?, N, ?>) state).setCurrentNamespace(defaultNamespace);
 		return state;
-	}
-
-	@SuppressWarnings("unchecked")
-	public <B extends AbstractKeyedStateBackend> B getKeyedStateBackend() {
-		return (B) keyedStateBackend;
 	}
 }
