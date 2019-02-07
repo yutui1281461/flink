@@ -21,61 +21,67 @@ package org.apache.flink.runtime.state.ttl;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
 
-/** Base test suite for {@link TtlListState}. */
-abstract class TtlListStateTestContextBase<T>
-	extends TtlMergingStateTestContext<TtlListState<?, String, T>, List<T>, Iterable<T>> {
-	private final TypeSerializer<T> serializer;
+/** Test suite for {@link TtlListState}. */
+class TtlListStateTestContext
+	extends TtlMergingStateTestContext<TtlListState<?, String, Integer>, List<Integer>, Iterable<Integer>> {
+	@Override
+	void initTestValues() {
+		emptyValue = Collections.emptyList();
 
-	TtlListStateTestContextBase(TypeSerializer<T> serializer) {
-		this.serializer = serializer;
+		updateEmpty = Arrays.asList(5, 7, 10);
+		updateUnexpired = Arrays.asList(8, 9, 11);
+		updateExpired = Arrays.asList(1, 4);
+
+		getUpdateEmpty = updateEmpty;
+		getUnexpired = updateUnexpired;
+		getUpdateExpired = updateExpired;
 	}
 
 	@Override
-	public void update(List<T> value) throws Exception {
+	void update(List<Integer> value) throws Exception {
 		ttlState.addAll(value);
 	}
 
 	@Override
-	public Iterable<T> get() throws Exception {
+	Iterable<Integer> get() throws Exception {
 		return StreamSupport.stream(ttlState.get().spliterator(), false).collect(Collectors.toList());
 	}
 
 	@Override
-	public Object getOriginal() throws Exception {
+	Object getOriginal() throws Exception {
 		return ttlState.original.get() == null ? emptyValue : ttlState.original.get();
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public <US extends State, SV> StateDescriptor<US, SV> createStateDescriptor() {
-		return (StateDescriptor<US, SV>) new ListStateDescriptor<>(getName(), serializer);
+	<US extends State, SV> StateDescriptor<US, SV> createStateDescriptor() {
+		return (StateDescriptor<US, SV>) new ListStateDescriptor<>("TtlTestListState", IntSerializer.INSTANCE);
 	}
 
 	@Override
-	List<T> generateRandomUpdate() {
+	List<Integer> generateRandomUpdate() {
 		int size = RANDOM.nextInt(5);
-		return IntStream.range(0, size).mapToObj(this::generateRandomElement).collect(Collectors.toList());
+		return IntStream.range(0, size).mapToObj(i -> RANDOM.nextInt(100)).collect(Collectors.toList());
 	}
 
-	abstract T generateRandomElement(int i);
-
 	@Override
-	Iterable<T> getMergeResult(
-		List<Tuple2<String, List<T>>> unexpiredUpdatesToMerge,
-		List<Tuple2<String, List<T>>> finalUpdatesToMerge) {
-		List<T> result = new ArrayList<>();
+	Iterable<Integer> getMergeResult(
+		List<Tuple2<String, List<Integer>>> unexpiredUpdatesToMerge,
+		List<Tuple2<String, List<Integer>>> finalUpdatesToMerge) {
+		List<Integer> result = new ArrayList<>();
 		finalUpdatesToMerge.forEach(t -> result.addAll(t.f1));
 		return result;
 	}
 
 }
-

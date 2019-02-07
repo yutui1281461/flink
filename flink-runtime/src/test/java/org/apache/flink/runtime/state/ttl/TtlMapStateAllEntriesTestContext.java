@@ -53,17 +53,17 @@ class TtlMapStateAllEntriesTestContext extends
 	}
 
 	@Override
-	public void update(Map<Integer, String> map) throws Exception {
+	void update(Map<Integer, String> map) throws Exception {
 		ttlState.putAll(map);
 	}
 
 	@Override
-	public Set<Map.Entry<Integer, String>> get() throws Exception {
+	Set<Map.Entry<Integer, String>> get() throws Exception {
 		return StreamSupport.stream(ttlState.entries().spliterator(), false).collect(Collectors.toSet());
 	}
 
 	@Override
-	public Object getOriginal() throws Exception {
+	Object getOriginal() throws Exception {
 		return ttlState.original.entries() == null ? Collections.emptySet() : ttlState.original.entries();
 	}
 }
