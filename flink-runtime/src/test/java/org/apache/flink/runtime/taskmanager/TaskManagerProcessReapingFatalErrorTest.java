@@ -16,14 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api;
+package org.apache.flink.runtime.taskmanager;
 
-import org.apache.flink.annotation.PublicEvolving;
+import akka.actor.ActorRef;
+import org.apache.flink.runtime.messages.TaskManagerMessages;
+
+import static org.junit.Assert.assertTrue;
 
 /**
- * The {@link BatchQueryConfig} holds parameters to configure the behavior of batch queries.
+ * Tests that the TaskManager process properly exits when the TaskManager actor dies.
  */
-@PublicEvolving
-public class BatchQueryConfig implements QueryConfig {
+public class TaskManagerProcessReapingFatalErrorTest extends TaskManagerProcessReapingTestBase {
 
+	@Override
+	void onTaskManagerProcessRunning(ActorRef taskManager) {
+		taskManager.tell(new TaskManagerMessages.FatalError("ouch", null), ActorRef.noSender());
+	}
+
+	@Override
+	void onTaskManagerProcessTerminated(String processOutput) {
+		assertTrue("Did not log expected message", processOutput.contains("ouch"));
+	}
 }
