@@ -39,11 +39,10 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import javax.annotation.Nullable;
+import java.io.IOException;
 
 /** mack state backend. */
 public class MockStateBackend extends AbstractStateBackend {
-	private static final long serialVersionUID = 995676510267499393L;
-
 	@Override
 	public CompletedCheckpointStorageLocation resolveCheckpoint(String externalPointer) {
 		throw new UnsupportedOperationException();
@@ -72,17 +71,17 @@ public class MockStateBackend extends AbstractStateBackend {
 				return new CheckpointStorageLocation() {
 
 					@Override
-					public CheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) {
+					public CheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) throws IOException {
 						return null;
 					}
 
 					@Override
-					public CheckpointMetadataOutputStream createMetadataOutputStream() {
+					public CheckpointMetadataOutputStream createMetadataOutputStream() throws IOException {
 						return null;
 					}
 
 					@Override
-					public void disposeOnFailure() {
+					public void disposeOnFailure() throws IOException {
 
 					}
 

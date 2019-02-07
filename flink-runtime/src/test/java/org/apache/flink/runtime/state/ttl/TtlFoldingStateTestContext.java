@@ -39,25 +39,25 @@ class TtlFoldingStateTestContext extends TtlStateTestContextBase<TtlFoldingState
 	}
 
 	@Override
-	public void update(Long value) throws Exception {
+	void update(Long value) throws Exception {
 		ttlState.add(value);
 	}
 
 	@Override
-	public String get() throws Exception {
+	String get() throws Exception {
 		return ttlState.get();
 	}
 
 	@Override
-	public Object getOriginal() throws Exception {
+	Object getOriginal() throws Exception {
 		return ttlState.original.get();
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public <US extends State, SV> StateDescriptor<US, SV> createStateDescriptor() {
+	<US extends State, SV> StateDescriptor<US, SV> createStateDescriptor() {
 		return (StateDescriptor<US, SV>) new FoldingStateDescriptor<>(
-			getName(), "1",  FOLD, StringSerializer.INSTANCE);
+			"TtlTestFoldingState", "1",  FOLD, StringSerializer.INSTANCE);
 	}
 
 	private static final FoldFunction<Long, String> FOLD = (acc, val) -> {

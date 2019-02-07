@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
@@ -233,17 +232,17 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	}
 
 	@Test
-	public void testCorrectMergeOperatorSet() throws Exception {
+	public void testCorrectMergeOperatorSet() throws IOException {
 
 		final ColumnFamilyOptions columnFamilyOptions = spy(new ColumnFamilyOptions());
 		RocksDBKeyedStateBackend<Integer> test = null;
-		try (DBOptions options = new DBOptions().setCreateIfMissing(true)) {
+		try {
 			test = new RocksDBKeyedStateBackend<>(
 				"test",
 				Thread.currentThread().getContextClassLoader(),
 				tempFolder.newFolder(),
-				options,
-				stateName -> columnFamilyOptions,
+				mock(DBOptions.class),
+				columnFamilyOptions,
 				mock(TaskKvStateRegistry.class),
 				IntSerializer.INSTANCE,
 				1,
@@ -254,16 +253,10 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				TestLocalRecoveryConfig.disabled(),
 				RocksDBStateBackend.PriorityQueueStateType.HEAP,
 				TtlTimeProvider.DEFAULT,
-				false,
 				new RocksDBNativeMetricOptions(),
 				new UnregisteredMetricsGroup());
-			test.restore(null);
-			ValueStateDescriptor<String> stubState =
-				new ValueStateDescriptor<>("StubState", StringSerializer.INSTANCE);
-			test.createInternalState(StringSerializer.INSTANCE, stubState);
 
-			// 1 time for default CF and 1 for StubState
-			verify(columnFamilyOptions, Mockito.times(2))
+			verify(columnFamilyOptions, Mockito.times(1))
 				.setMergeOperatorName(RocksDBKeyedStateBackend.MERGE_OPERATOR_NAME);
 		} finally {
 			if (test != null) {

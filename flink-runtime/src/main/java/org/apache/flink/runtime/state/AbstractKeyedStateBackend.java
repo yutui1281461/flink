@@ -93,7 +93,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 
 	private final ExecutionConfig executionConfig;
 
-	protected final TtlTimeProvider ttlTimeProvider;
+	private final TtlTimeProvider ttlTimeProvider;
 
 	/** Decorates the input and output streams to write key-groups compressed. */
 	protected final StreamCompressionDecorator keyGroupCompressionDecorator;
