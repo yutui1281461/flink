@@ -22,19 +22,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.testutils.SecurityManagerContext;
-import org.apache.flink.runtime.testutils.SystemExitTrackingSecurityManager;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.function.RunnableWithException;
 
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.Timeout;
 
-import java.util.concurrent.TimeUnit;
+import java.net.ServerSocket;
+import java.util.concurrent.CompletableFuture;
 
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -43,57 +37,44 @@ import static org.junit.Assert.assertThat;
  */
 public class TaskManagerRunnerTest extends TestLogger {
 
-	@Rule
-	public final Timeout timeout = Timeout.seconds(30);
-
-	private Configuration configuration;
-
-	@Before
-	public void setUp() {
-		configuration = new Configuration();
-		configuration.setString(JobManagerOptions.ADDRESS, "localhost");
-		configuration.setString(TaskManagerOptions.HOST, "localhost");
-	}
-
 	@Test
-	public void testShouldShutdownOnFatalError() throws Exception {
-		try (TaskManagerRunner taskManagerRunner = createTaskManagerRunner(configuration)) {
-			taskManagerRunner.start();
+	public void testTaskManagerRunnerShutdown() throws Exception {
+		final Configuration configuration = new Configuration();
+		final ResourceID taskManagerResourceId = ResourceID.generate();
 
-			final SystemExitTrackingSecurityManager systemExitTrackingSecurityManager =
-				runWithSystemExitTracking(() -> {
-					taskManagerRunner.onFatalError(new RuntimeException());
-					taskManagerRunner.getTerminationFuture().get(30, TimeUnit.SECONDS);
-				});
+		final ServerSocket localhost = new ServerSocket(0);
 
-			assertThat(systemExitTrackingSecurityManager.getCount(), is(equalTo(1)));
-			assertThat(systemExitTrackingSecurityManager.getStatus(), is(equalTo(TaskManagerRunner.RUNTIME_FAILURE_RETURN_CODE)));
-		}
-	}
-
-	@Test
-	public void testShouldShutdownIfRegistrationWithJobManagerFails() throws Exception {
+		configuration.setString(JobManagerOptions.ADDRESS, localhost.getInetAddress().getHostName());
+		configuration.setInteger(JobManagerOptions.PORT, localhost.getLocalPort());
 		configuration.setString(TaskManagerOptions.REGISTRATION_TIMEOUT, "10 ms");
+		final CompletableFuture<Void> jvmTerminationFuture = new CompletableFuture<>();
+		final TestingTaskManagerRunner taskManagerRunner = new TestingTaskManagerRunner(configuration, taskManagerResourceId, jvmTerminationFuture);
 
-		try (TaskManagerRunner taskManagerRunner = createTaskManagerRunner(configuration)) {
-			taskManagerRunner.start();
+		taskManagerRunner.start();
 
-			final SystemExitTrackingSecurityManager systemExitTrackingSecurityManager =
-				runWithSystemExitTracking(() ->
-					taskManagerRunner.getTerminationFuture().get());
+		try {
+			// wait until we trigger the jvm termination
+			jvmTerminationFuture.get();
 
-			assertThat(systemExitTrackingSecurityManager.getCount(), is(equalTo(1)));
-			assertThat(systemExitTrackingSecurityManager.getStatus(), is(equalTo(TaskManagerRunner.RUNTIME_FAILURE_RETURN_CODE)));
+			assertThat(taskManagerRunner.getTerminationFuture().isDone(), is(true));
+		} finally {
+			localhost.close();
+			taskManagerRunner.close();
 		}
 	}
 
-	private static SystemExitTrackingSecurityManager runWithSystemExitTracking(final RunnableWithException runnable) {
-		final SystemExitTrackingSecurityManager systemExitTrackingSecurityManager = new SystemExitTrackingSecurityManager();
-		SecurityManagerContext.runWithSecurityManager(systemExitTrackingSecurityManager, runnable);
-		return systemExitTrackingSecurityManager;
-	}
+	private static class TestingTaskManagerRunner extends TaskManagerRunner {
 
-	private static TaskManagerRunner createTaskManagerRunner(final Configuration configuration) throws Exception {
-		return new TaskManagerRunner(configuration, ResourceID.generate());
+		private final CompletableFuture<Void> jvmTerminationFuture;
+
+		public TestingTaskManagerRunner(Configuration configuration, ResourceID resourceId, CompletableFuture<Void> jvmTerminationFuture) throws Exception {
+			super(configuration, resourceId);
+			this.jvmTerminationFuture = jvmTerminationFuture;
+		}
+
+		@Override
+		protected void terminateJVM() {
+			jvmTerminationFuture.complete(null);
+		}
 	}
 }
