@@ -19,10 +19,8 @@
 package org.apache.flink.api.scala.typeutils;
 
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 
 import scala.collection.TraversableOnce;
 
@@ -33,7 +31,6 @@ import scala.collection.TraversableOnce;
  * allow calling different base class constructors from subclasses, while we need that
  * for the default empty constructor.
  */
-@Deprecated
 public class TraversableSerializerConfigSnapshot<T extends TraversableOnce<E>, E>
 		extends CompositeTypeSerializerConfigSnapshot<T> {
 
@@ -49,18 +46,5 @@ public class TraversableSerializerConfigSnapshot<T extends TraversableOnce<E>, E
 	@Override
 	public int getVersion() {
 		return VERSION;
-	}
-
-	@Override
-	public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
-		TraversableSerializer<T, E> previousSerializer = (TraversableSerializer<T, E>) restoreSerializer();
-		TraversableSerializerSnapshot<T, E> newCompositeSnapshot =
-				new TraversableSerializerSnapshot<>(previousSerializer.cbfCode());
-
-		return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
-				newSerializer,
-				newCompositeSnapshot,
-				getSingleNestedSerializerAndConfig().f1
-		);
 	}
 }
