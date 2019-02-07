@@ -559,6 +559,63 @@ public abstract class ClusterClient<T> {
 	}
 
 	/**
+	 * Reattaches to a running from the supplied job id.
+	 * @param jobID The job id of the job to attach to
+	 * @return The JobExecutionResult for the jobID
+	 * @throws JobExecutionException if an error occurs during monitoring the job execution
+	 */
+	public JobExecutionResult retrieveJob(JobID jobID) throws JobExecutionException {
+		final ActorSystem actorSystem;
+
+		try {
+			actorSystem = actorSystemLoader.get();
+		} catch (FlinkException fe) {
+			throw new JobExecutionException(
+				jobID,
+				"Could not start the ActorSystem needed to talk to the JobManager.",
+				fe);
+		}
+
+		final JobListeningContext listeningContext = JobClient.attachToRunningJob(
+			jobID,
+			flinkConfig,
+			actorSystem,
+			highAvailabilityServices,
+			timeout,
+			printStatusDuringExecution);
+
+		return JobClient.awaitJobResult(listeningContext);
+	}
+
+	/**
+	 * Reattaches to a running job with the given job id.
+	 *
+	 * @param jobID The job id of the job to attach to
+	 * @return The JobExecutionResult for the jobID
+	 * @throws JobExecutionException if an error occurs during monitoring the job execution
+	 */
+	public JobListeningContext connectToJob(JobID jobID) throws JobExecutionException {
+		final ActorSystem actorSystem;
+
+		try {
+			actorSystem = actorSystemLoader.get();
+		} catch (FlinkException fe) {
+			throw new JobExecutionException(
+				jobID,
+				"Could not start the ActorSystem needed to talk to the JobManager.",
+				fe);
+		}
+
+		return JobClient.attachToRunningJob(
+			jobID,
+			flinkConfig,
+			actorSystem,
+			highAvailabilityServices,
+			timeout,
+			printStatusDuringExecution);
+	}
+
+	/**
 	 * Requests the {@link JobStatus} of the job with the given {@link JobID}.
 	 */
 	public CompletableFuture<JobStatus> getJobStatus(JobID jobId) {
